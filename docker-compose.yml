@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  php:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    container_name: php
+    restart: unless-stopped
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80" # HTTP
+      - "443:443" # HTTPS
+      - "443:443/udp" # HTTP/3
+    depends_on:
+      - database
+    networks:
+      - symfony-network
+
+  database:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    container_name: database
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - ./docker/db/data:/var/lib/postgresql/data:rw
+    networks:
+      - symfony-network
+
+networks:
+  symfony-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
